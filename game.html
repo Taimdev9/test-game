@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اللعبة</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card">
+        <h1 id="gameTitle">🎮</h1>
+        <div class="turn-indicator" id="turnIndicator">في الانتظار...</div>
+        <div id="gameArea"></div>
+        <button class="btn btn-danger" id="exitBtn" style="margin-top:20px;">🚪 خروج</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const roomCode = params.get('room');
+        if (!roomCode) location.href = 'index.html';
+
+        let currentUser, roomRef, currentRoom, mySymbol;
+
+        requireAuth((user) => {
+            currentUser = user;
+            roomRef = Rooms.get(roomCode);
+            Rooms.listen(roomCode, onRoomUpdate);
+        });
+
+        function onRoomUpdate(snap) {
+            const room = snap.val();
+            if (!room) { location.href = 'index.html'; return; }
+            currentRoom = room;
+            
+            const gameInfo = GAMES[room.gameType];
+            document.getElementById('gameTitle').textContent = gameInfo.icon + ' ' + gameInfo.name;
+
+            const playerIds = Object.keys(room.players || {}).sort();
+            mySymbol = playerIds.indexOf(currentUser.uid) === 0 ? 'X' : 'O';
+
+            const area = document.getElementById('gameArea');
+            if (room.gameType === 'tictactoe') renderTicTacToe(area, room);
+            else if (room.gameType === 'rps') renderRPS(area, room);
+            else if (room.gameType === 'reaction') renderReaction(area, room);
+            else if (room.gameType === 'wordchain') renderWordChain(area, room);
+        }
+
+        // ============ X-O ============
+        function renderTicTacToe(area, room) {
+            if (!room.state) {
+                roomRef.child('state').set({ board: Array(9).fill(''), turn: Object.keys(room.players).sort()[0], winner: null });
+                return;
+            }
+            const board = room.state.board;
+            const turn = room.state.turn;
+            const winner = room.state.winner;
+            const myTurn = turn === currentUser.uid && !winner;
+
+            document.getElementById('turnIndicator').textContent = 
+                winner ? (winner === 'draw' ? '🤝 تعادل!' : (winner === currentUser.uid ? '🎉 فزت!' : '😢 خسرت')) :
+                (myTurn ? '🎯 دورك!' : '⏳ دور الخصم...');
+
+            let html = '<div class="ttt-board">';
+            board.forEach((val, i) => {
+                html += `<div class="ttt-cell ${val === 'X' ? 'x' : val === 'O' ? 'o' : ''}" data-i="${i}">${val}</div>`;
+            });
+            html += '</div>';
+            area.innerHTML = html;
+
+            area.querySelectorAll('.ttt-cell').forEach(cell => {
+                cell.onclick = () => {
+                    const i = +cell.dataset.i;
+                    if (!myTurn || board[i] || winner) return;
+                    const newBoard = [...board];
+                    newBoard[i] = mySymbol;
+                    
+                    const w = checkTTTWinner(newBoard, room);
+                    const nextTurn = Object.keys(room.players).sort().find(id => id !== currentUser.uid);
+                    
+                    roomRef.child('state').update({
+                        board: newBoard,
+                        turn: nextTurn,
+                        winner: w || null
+                    });
+                };
+            });
+        }
+
+        function checkTTTWinner(b, room) {
+            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            const ids = Object.keys(room.players).sort();
+            for (const [a,c,d] of lines) {
+                if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+                    return b[a] === 'X' ? ids[0] : ids[1];
+                }
+            }
+            if (b.every(c => c)) return 'draw';
+            return null;
+        }
+
+        // ============ حجرة ورقة مقص ============
+        function renderRPS(area, room) {
+            if (!room.state) {
+                roomRef.child('state').set({ choices: {}, scores: {}, round: 1 });
+                return;
+            }
+            const state = room.state;
+            const myChoice = state.choices?.[currentUser.uid];
+            const opponentId = Object.keys(room.players).find(id => id !== currentUser.uid);
+            const oppChoice = state.choices?.[opponentId];
+            const bothChose = myChoice && oppChoice;
+
+            let status = '';
+            if (bothChose) {
+                const result = getRPSResult(myChoice, oppChoice);
+                if (result === 'win') status = '🎉 فزت الجولة!';
+                else if (result === 'lose') status = '😢 خسرت الجولة';
+                else status = '🤝 تعادل';
+            } else if (myChoice) status = '⏳ بانتظار الخصم...';
+            else status = '🎯 اختر!';
+
+            const myScore = state.scores?.[currentUser.uid] || 0;
+            const oppScore = state.scores?.[opponentId] || 0;
+
+            document.getElementById('turnIndicator').innerHTML = 
+                `${status}<br><small>أنت ${myScore} - ${oppScore} الخصم</small>`;
+
+            area.innerHTML = `
+                <div class="rps-choices">
+                    <button class="rps-btn ${myChoice === 'rock' ? 'selected' : ''}" data-c="rock">✊</button>
+                    <button class="rps-btn ${myChoice === 'paper' ? 'selected' : ''}" data-c="paper">✋</button>
+                    <button class="rps-btn ${myChoice === 'scissors' ? 'selected' : ''}" data-c="scissors">✌️</button>
+                </div>
+            `;
+
+            area.querySelectorAll('.rps-btn').forEach(btn => {
+                btn.onclick = async () => {
+                    if (myChoice) return;
+                    await roomRef.child('state/choices/' + currentUser.uid).set(btn.dataset.c);
+                    
+                    const snap = await roomRef.child('state/choices').once('value');
+                    const choices = snap.val() || {};
+                    if (choices[opponentId] && choices[currentUser.uid]) {
+                        const res = getRPSResult(choices[currentUser.uid], choices[opponentId]);
+                        if (res === 'win') await roomRef.child('state/scores/' + currentUser.uid).transaction(s => (s || 0) + 1);
+                        else if (res === 'lose') await roomRef.child('state/scores/' + opponentId).transaction(s => (s || 0) + 1);
+                        
+                        setTimeout(() => {
+                            roomRef.child('state/choices').remove();
+                            roomRef.child('state/round').transaction(r => (r || 1) + 1);
+                        }, 2000);
+                    }
+                };
+            });
+        }
+
+        function getRPSResult(a, b) {
+            if (a === b) return 'draw';
+            if ((a === 'rock' && b === 'scissors') || (a === 'paper' && b === 'rock') || (a === 'scissors' && b === 'paper')) return 'win';
+            return 'lose';
+        }
+
+        // ============ تحدي رد الفعل ============
+        function renderReaction(area, room) {
+            if (!room.state) {
+                roomRef.child('state').set({ status: 'idle', startAt: null, winner: null });
+                return;
+            }
+            const state = room.state;
+            const playerIds = Object.keys(room.players).sort();
+            const isHost = currentUser.uid === playerIds[0];
+
+            let cls = 'reaction-idle';
+            let text = '';
+
+            if (state.status === 'idle') text = isHost ? '👉 اضغط لبدء الجولة' : '⏳ بانتظار المضيف...';
+            else if (state.status === 'waiting') { cls = 'reaction-wait'; text = '⏳ استعد...'; }
+            else if (state.status === 'go') { cls = 'reaction-ready'; text = '⚡ اضغط الآن!'; }
+            else if (state.status === 'done') {
+                const winnerName = room.players[state.winner]?.name || '؟';
+                text = state.winner === currentUser.uid ? '🎉 فزت!' : `😢 فاز ${winnerName}`;
+                cls = state.winner === currentUser.uid ? 'reaction-ready' : 'reaction-wait';
+            }
+
+            area.innerHTML = `<div class="reaction-area ${cls}" id="reactionBox">${text}</div>`;
+            const box = document.getElementById('reactionBox');
+
+            box.onclick = async () => {
+                if (state.status === 'idle' && isHost) {
+                    await roomRef.child('state').update({ status: 'waiting', startAt: null, winner: null });
+                    const delay = 2000 + Math.random() * 3000;
+                    setTimeout(() => {
+                        roomRef.child('state').update({ status: 'go', startAt: Date.now() });
+                    }, delay);
+                } else if (state.status === 'go') {
+                    const result = await roomRef.child('state/winner').transaction(w => {
+                        if (w === null) return currentUser.uid;
+                        return;
+                    });
+                    await roomRef.child('state/status').set('done');
+                } else if (state.status === 'done' && isHost) {
+                    await roomRef.child('state').update({ status: 'idle', startAt: null, winner: null });
+                }
+            };
+        }
+
+        // ============ سلسلة الكلمات ============
+        function renderWordChain(area, room) {
+            if (!room.state) {
+                const ids = Object.keys(room.players).sort();
+                roomRef.child('state').set({ words: [], turn: ids[0] });
+                return;
+            }
+            const state = room.state;
+            const playerIds = Object.keys(room.players).sort();
+            const isMyTurn = state.turn === currentUser.uid;
+            const lastWord = state.words[state.words.length - 1];
+            const lastLetter = lastWord ? lastWord.word.slice(-1) : null;
+
+            document.getElementById('turnIndicator').textContent = isMyTurn ? '🎯 دورك!' : '⏳ دور الخصم...';
+
+            area.innerHTML = `
+                <div class="word-list" id="wordList">
+                    ${state.words.length === 0 ? '<div style="text-align:center;color:#999;">لا يوجد كلمات بعد</div>' : 
+                        state.words.map(w => {
+                            const p = room.players[w.by]?.name || '؟';
+                            return `<div class="word-item">👤 ${p}: <b>${w.word}</b></div>`;
+                        }).join('')}
+                </div>
+                <input type="text" id="wordInput" placeholder="${lastLetter ? 'كلمة تبدأ بحرف ' + lastLetter : 'اكتب أول كلمة'}" ${!isMyTurn ? 'disabled' : ''}>
+                <button class="btn btn-primary" id="submitWord" ${!isMyTurn ? 'disabled' : ''}>أرسل</button>
+            `;
+
+            const submitBtn = document.getElementById('submitWord');
+            if (submitBtn) submitBtn.onclick = async () => {
+                const word = document.getElementById('wordInput').value.trim();
+                if (!word) return;
+                if (lastLetter && word[0] !== lastLetter) {
+                    alert('الكلمة يجب أن تبدأ بحرف ' + lastLetter);
+                    return;
+                }
+                const newWords = [...state.words, { word, by: currentUser.uid, at: Date.now() }];
+                const nextTurn = playerIds.find(id => id !== currentUser.uid);
+                await roomRef.child('state').update({ words: newWords, turn: nextTurn });
+            };
+        }
+
+        document.getElementById('exitBtn').onclick = () => {
+            if (confirm('تأكيد الخروج من اللعبة؟')) {
+                roomRef.child('players/' + currentUser.uid).remove();
+                location.href = 'index.html';
+            }
+        };
+    </script>
+</body>
+</html>

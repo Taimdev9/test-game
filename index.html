@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة تجريبية - تسجيل الأحداث</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f0f2f5;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #log {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 لعبة تجريبية</h1>
+    <p>جرب تكبس الزر وشوف شو بيصير في Firebase</p>
+    
+    <input type="text" id="username" placeholder="اكتب اسمك هون" style="padding: 10px; font-size: 16px; margin-bottom: 15px;">
+    <br>
+    <button id="playBtn">اضغط للعب! 🎯</button>
+    
+    <div id="log"></div>
+
+    <!-- 1. مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        // 2. إعدادات Firebase - لازم تبدلها بإعداداتك
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // 3. تهيئة Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // 4. دالة تسجيل الضغطة في قاعدة البيانات
+        function logButtonClick(username) {
+            const clicksRef = database.ref('button_clicks');
+            
+            clicksRef.push({
+                username: username || 'مجهول',
+                timestamp: Date.now(),
+                action: 'play_button_clicked'
+            })
+            .then(() => {
+                document.getElementById('log').innerText = '✅ تم تسجيل الضغطة في Firebase!';
+                console.log('تم التسجيل بنجاح');
+            })
+            .catch((error) => {
+                document.getElementById('log').innerText = '❌ صار خطأ: ' + error.message;
+                console.error('خطأ:', error);
+            });
+        }
+
+        // 5. ربط الزر بدالة التسجيل
+        document.getElementById('playBtn').addEventListener('click', () => {
+            const username = document.getElementById('username').value.trim();
+            logButtonClick(username);
+        });
+    </script>
+</body>
+</html>

@@ -3,67 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لعبة تجريبية - تسجيل الأحداث</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f0f2f5; }
-        button { padding: 15px 30px; font-size: 18px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; }
-        button:hover { background-color: #45a049; }
-        #log { margin-top: 20px; font-size: 16px; color: #333; }
-    </style>
+    <title>ألعاب أونلاين</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>🎮 لعبة تجريبية</h1>
-    <p>جرب تكبس الزر وشوف شو بيصير في Firebase</p>
-    
-    <input type="text" id="username" placeholder="اكتب اسمك هون" style="padding: 10px; font-size: 16px; margin-bottom: 15px;">
-    <br>
-    <button id="playBtn">اضغط للعب! 🎯</button>
-    
-    <div id="log"></div>
+    <div class="card" id="authScreen">
+        <h1>🎮 ألعاب أونلاين</h1>
+        
+        <input type="email" id="email" placeholder="الإيميل">
+        <input type="password" id="password" placeholder="كلمة السر">
+        
+        <button class="btn btn-primary" id="loginBtn">تسجيل دخول</button>
+        <button class="btn btn-outline" id="signupBtn">إنشاء حساب جديد</button>
+        
+        <h2 style="text-align:center; font-size:14px; color:#999;">أو</h2>
+        
+        <button class="btn btn-google" id="googleBtn">🔵 دخول بحساب Google</button>
+        <button class="btn btn-guest" id="guestBtn">👤 دخول كزائر</button>
+        
+        <div class="status" id="authStatus"></div>
+    </div>
 
-    <!-- مكتبات Firebase -->
+    <div class="card" id="menuScreen" style="display:none;">
+        <div class="menu-header">
+            <span class="user-badge" id="userBadge">لاعب</span>
+            <button class="btn btn-danger" id="logoutBtn" style="width:auto; padding:8px 15px;">خروج</button>
+        </div>
+        
+        <h1>🎯 اختر لعبة</h1>
+        <div class="game-grid" id="gameGrid"></div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
+    <script src="app.js"></script>
     <script>
-        // إعدادات Firebase الخاصة فيك
-        const firebaseConfig = {
-            apiKey: "AIzaSyCVdy9XGQtsf30Ldxe8qT8fqtyNwSx3AB0",
-            authDomain: "test-game-a885a.firebaseapp.com",
-            // 👇 رابط قاعدة البيانات اللي نسخته تم وضعه هنا
-            databaseURL: "https://test-game-a885a-default-rtdb.firebaseio.com/", 
-            projectId: "test-game-a885a",
-            storageBucket: "test-game-a885a.firebasestorage.app",
-            messagingSenderId: "861341408127",
-            appId: "1:861341408127:web:f9ca2e072997376e94584a",
-            measurementId: "G-7N2J43J9LS"
-        };
+        const authScreen = document.getElementById('authScreen');
+        const menuScreen = document.getElementById('menuScreen');
+        const statusEl = document.getElementById('authStatus');
 
-        // تهيئة Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-
-        // دالة تسجيل الضغطة
-        function logButtonClick(username) {
-            const clicksRef = database.ref('button_clicks');
-            
-            clicksRef.push({
-                username: username || 'مجهول',
-                timestamp: Date.now(),
-                action: 'play_button_clicked'
-            })
-            .then(() => {
-                document.getElementById('log').innerText = '✅ تم تسجيل الضغطة في Firebase!';
-            })
-            .catch((error) => {
-                document.getElementById('log').innerText = '❌ صار خطأ: ' + error.message;
-            });
+        function showStatus(msg, type = 'error') {
+            statusEl.textContent = msg;
+            statusEl.className = 'status ' + type;
         }
 
-        // ربط الزر
-        document.getElementById('playBtn').addEventListener('click', () => {
-            const username = document.getElementById('username').value.trim();
-            logButtonClick(username);
+        document.getElementById('loginBtn').onclick = async () => {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('password').value;
+            if (!email || !pass) return showStatus('املأ كل الحقول');
+            try { await Auth.login(email, pass); } 
+            catch (e) { showStatus(e.message); }
+        };
+
+        document.getElementById('signupBtn').onclick = async () => {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('password').value;
+            if (!email || !pass) return showStatus('املأ كل الحقول');
+            if (pass.length < 6) return showStatus('كلمة السر 6 أحرف على الأقل');
+            try { await Auth.signup(email, pass); } 
+            catch (e) { showStatus(e.message); }
+        };
+
+        document.getElementById('googleBtn').onclick = async () => {
+            try { await Auth.google(); } catch (e) { showStatus(e.message); }
+        };
+
+        document.getElementById('guestBtn').onclick = async () => {
+            try { await Auth.guest(); } catch (e) { showStatus(e.message); }
+        };
+
+        document.getElementById('logoutBtn').onclick = () => Auth.logout();
+
+        const grid = document.getElementById('gameGrid');
+        Object.entries(GAMES).forEach(([key, g]) => {
+            const a = document.createElement('a');
+            a.className = 'game-card';
+            a.href = 'lobby.html?game=' + key;
+            a.innerHTML = `<span class="icon">${g.icon}</span><span class="name">${g.name}</span>
+                           <div style="font-size:12px;color:#888;margin-top:5px;">${g.desc}</div>`;
+            grid.appendChild(a);
+        });
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                authScreen.style.display = 'none';
+                menuScreen.style.display = 'block';
+                document.getElementById('userBadge').textContent = '👤 ' + getUserName(user);
+            } else {
+                authScreen.style.display = 'block';
+                menuScreen.style.display = 'none';
+            }
         });
     </script>
 </body>

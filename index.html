@@ -61,7 +61,7 @@
         </div>
         <ul class="drawer-nav">
             <li><a href="profile.html"><span class="icon">👤</span> الملف الشخصي</a></li>
-            <li><a href="missions.html"><span class="icon">🎯</span> المهام اليومية</a></li>
+            <li><a href="profile.html#missions"><span class="icon">🎯</span> المهام اليومية</a></li>
             <li><a href="#" id="editNameBtn"><span class="icon">✏️</span> تعديل الاسم</a></li>
             <li><a href="#" id="logoutBtn"><span class="icon">🚪</span> تسجيل خروج</a></li>
         </ul>
@@ -78,9 +78,14 @@
         const loadingText = document.getElementById('loadingText');
         const authScreen = document.getElementById('authScreen');
         const mainApp = document.getElementById('mainApp');
-        
-        // شاشة التحميل: 5 ثواني للمسجل، 7 لغير المسجل
-        auth.onAuthStateChanged(async user => {
+
+        let loadingDone = false;
+        let currentUser = null;
+
+        function finishLoading(user) {
+            if (loadingDone) return;
+            loadingDone = true;
+
             const duration = user ? 5000 : 7000;
             const startTime = Date.now();
             const interval = setInterval(() => {
@@ -91,22 +96,35 @@
                     clearInterval(interval);
                     loadingScreen.classList.add('hide');
                     if (user) {
-                        await setupApp(user);
+                        setupApp(user);
                     } else {
                         authScreen.style.display = 'block';
                     }
                 }
             }, 50);
+        }
+
+        // مؤقت أمان: إذا Firebase تأخر، نكمل بعد 8 ثواني
+        setTimeout(() => {
+            if (!loadingDone) {
+                console.warn('Auth timeout - forcing load');
+                finishLoading(currentUser);
+            }
+        }, 8000);
+
+        auth.onAuthStateChanged(user => {
+            currentUser = user;
+            finishLoading(user);
         });
 
         async function setupApp(user) {
             const profile = await User.getOrCreate(user);
             window.__user = user;
             window.__profile = profile;
-            
+
             authScreen.style.display = 'none';
             mainApp.style.display = 'block';
-            
+
             // بناء شبكة الألعاب
             const grid = document.getElementById('gamesGrid');
             grid.innerHTML = '';
@@ -121,14 +139,14 @@
                 `;
                 grid.appendChild(a);
             });
-            
+
             // بيانات القائمة الجانبية
             document.getElementById('drawerName').textContent = profile.name;
             document.getElementById('drawerEmail').textContent = profile.email || (profile.isGuest ? 'زائر' : '');
             document.getElementById('drawerAvatar').textContent = profile.avatar || '🎮';
             updateCoinDisplay(profile.coins);
             startPresence(user.uid);
-            
+
             // مراقبة العملات لحظياً
             db.ref('users/' + user.uid + '/coins').on('value', s => {
                 if (s.exists()) updateCoinDisplay(s.val());
@@ -137,7 +155,7 @@
 
         // ============ Auth Buttons ============
         const showErr = (e) => toast(e.message || 'خطأ', 'error');
-        
+
         document.getElementById('loginBtn').onclick = async () => {
             const e = document.getElementById('email').value.trim();
             const p = document.getElementById('password').value;
@@ -157,7 +175,7 @@
         document.getElementById('guestBtn').onclick = async () => {
             try { await Auth.guest(); } catch (err) { showErr(err); }
         };
-        
+
         // ============ Drawer ============
         const drawer = document.getElementById('drawer');
         const overlay = document.getElementById('drawerOverlay');
@@ -169,13 +187,13 @@
             drawer.classList.remove('open');
             overlay.classList.remove('open');
         };
-        
+
         document.getElementById('logoutBtn').onclick = async (e) => {
             e.preventDefault();
             await Auth.logout();
             location.reload();
         };
-        
+
         document.getElementById('editNameBtn').onclick = async (e) => {
             e.preventDefault();
             const newName = prompt('اسمك الجديد:', window.__profile.name);
@@ -184,17 +202,6 @@
             toast('تم تحديث الاسم', 'success');
             document.getElementById('drawerName').textContent = newName.trim();
         };
-        
-        // ============ وظيفة اختيار اسم للزوار ============
-        // (هذا الجزء بيتنفذ إذا المستخدم سجل دخول كزائر وما عنده اسم مخصص)
-        auth.onAuthStateChanged(async user => {
-            if (user && user.isAnonymous) {
-                const snap = await db.ref('users/' + user.uid + '/name').once('value');
-                if (!snap.exists() || !snap.val()) {
-                    // اسم افتراضي، ممكن يعدله لاحقاً من القائمة
-                }
-            }
-        });
     </script>
 </body>
 </html>

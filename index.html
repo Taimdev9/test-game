@@ -5,29 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لعبة تجريبية - تسجيل الأحداث</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin-top: 50px;
-            background-color: #f0f2f5;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #log {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #333;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f0f2f5; }
+        button { padding: 15px 30px; font-size: 18px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #log { margin-top: 20px; font-size: 16px; color: #333; }
     </style>
 </head>
 <body>
@@ -40,27 +21,29 @@
     
     <div id="log"></div>
 
-    <!-- 1. مكتبات Firebase -->
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <script>
-        // 2. إعدادات Firebase - لازم تبدلها بإعداداتك
+        // إعدادات Firebase الخاصة فيك
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCVdy9XGQtsf30Ldxe8qT8fqtyNwSx3AB0",
+            authDomain: "test-game-a885a.firebaseapp.com",
+            // 👇 رابط قاعدة البيانات اللي نسخته تم وضعه هنا
+            databaseURL: "https://test-game-a885a-default-rtdb.firebaseio.com/", 
+            projectId: "test-game-a885a",
+            storageBucket: "test-game-a885a.firebasestorage.app",
+            messagingSenderId: "861341408127",
+            appId: "1:861341408127:web:f9ca2e072997376e94584a",
+            measurementId: "G-7N2J43J9LS"
         };
 
-        // 3. تهيئة Firebase
+        // تهيئة Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // 4. دالة تسجيل الضغطة في قاعدة البيانات
+        // دالة تسجيل الضغطة
         function logButtonClick(username) {
             const clicksRef = database.ref('button_clicks');
             
@@ -71,15 +54,13 @@
             })
             .then(() => {
                 document.getElementById('log').innerText = '✅ تم تسجيل الضغطة في Firebase!';
-                console.log('تم التسجيل بنجاح');
             })
             .catch((error) => {
                 document.getElementById('log').innerText = '❌ صار خطأ: ' + error.message;
-                console.error('خطأ:', error);
             });
         }
 
-        // 5. ربط الزر بدالة التسجيل
+        // ربط الزر
         document.getElementById('playBtn').addEventListener('click', () => {
             const username = document.getElementById('username').value.trim();
             logButtonClick(username);

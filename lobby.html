@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة الانتظار</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card">
+        <h1 id="gameTitle">🎮 غرفة الانتظار</h1>
+        
+        <button class="btn btn-primary" id="createBtn">➕ إنشاء غرفة جديدة</button>
+        
+        <h2 style="text-align:center; font-size:16px; color:#999;">أو</h2>
+        
+        <input type="text" id="joinCode" placeholder="أدخل كود الغرفة" maxlength="6" style="text-transform:uppercase; text-align:center; font-size:20px; letter-spacing:5px;">
+        <button class="btn btn-outline" id="joinBtn">🚪 دخول الغرفة</button>
+        
+        <div class="status" id="status"></div>
+        
+        <div id="roomInfo" style="display:none; margin-top:20px;">
+            <p style="text-align:center; color:#666;">شارك هذا الكود مع صديقك:</p>
+            <div class="code-display" id="roomCode">------</div>
+            <button class="btn btn-outline" id="copyBtn">📋 نسخ الرابط</button>
+            
+            <h2>اللاعبون</h2>
+            <ul class="player-list" id="playerList"></ul>
+            <div class="players-info" id="playersInfo"></div>
+        </div>
+        
+        <button class="btn btn-guest" id="backBtn" style="margin-top:20px;">← رجوع</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const gameType = params.get('game') || 'tictactoe';
+        const gameInfo = GAMES[gameType];
+        const urlRoom = params.get('room');
+        
+        document.getElementById('gameTitle').textContent = gameInfo.icon + ' ' + gameInfo.name;
+        const statusEl = document.getElementById('status');
+        let currentUser = null;
+        let roomRef = null;
+
+        function showStatus(msg, type = 'error') {
+            statusEl.textContent = msg;
+            statusEl.className = 'status ' + type;
+        }
+
+        requireAuth(async (user) => {
+            currentUser = user;
+            if (urlRoom) await enterRoom(urlRoom.toUpperCase());
+        });
+
+        document.getElementById('createBtn').onclick = async () => {
+            try {
+                showStatus('جاري إنشاء الغرفة...', 'success');
+                const code = await Rooms.create(gameType, currentUser);
+                await enterRoom(code);
+            } catch (e) { showStatus('خطأ: ' + e.message); }
+        };
+
+        document.getElementById('joinBtn').onclick = async () => {
+            const code = document.getElementById('joinCode').value.trim().toUpperCase();
+            if (code.length !== 6) return showStatus('الكود يجب أن يكون 6 أحرف');
+            await enterRoom(code);
+        };
+
+        async function enterRoom(code) {
+            try {
+                await Rooms.join(code, currentUser);
+                showStatus('');
+                document.getElementById('roomInfo').style.display = 'block';
+                document.getElementById('roomCode').textContent = code;
+                document.getElementById('createBtn').style.display = 'none';
+                document.getElementById('joinBtn').style.display = 'none';
+                document.getElementById('joinCode').style.display = 'none';
+
+                roomRef = Rooms.get(code);
+                Rooms.listen(code, (snap) => {
+                    const room = snap.val();
+                    if (!room) return;
+
+                    const list = document.getElementById('playerList');
+                    list.innerHTML = '';
+                    const players = room.players || {};
+                    Object.entries(players).forEach(([uid, p]) => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `<span>${uid === room.host ? '👑 ' : '👤 '}${p.name}</span>`;
+                        list.appendChild(li);
+                    });
+                    
+                    const count = Object.keys(players).length;
+                    document.getElementById('playersInfo').textContent = `اللاعبون: ${count} / ${gameInfo.players}`;
+
+                    if (count >= gameInfo.players && room.status === 'waiting') {
+                        roomRef.update({ status: 'playing' });
+                    }
+                    if (room.status === 'playing') {
+                        window.location.href = 'game.html?room=' + code;
+                    }
+                });
+            } catch (e) { showStatus(e.message); }
+        }
+
+        document.getElementById('copyBtn').onclick = () => {
+            const code = document.getElementById('roomCode').textContent;
+            const url = location.origin + location.pathname + '?game=' + gameType + '&room=' + code;
+            navigator.clipboard.writeText(url).then(() => {
+                showStatus('تم نسخ الرابط! ✅', 'success');
+            });
+        };
+
+        document.getElementById('backBtn').onclick = () => location.href = 'index.html';
+    </script>
+</body>
+</html>

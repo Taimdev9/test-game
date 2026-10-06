@@ -3,96 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألعاب أونلاين</title>
+    <title>GameVerse - ألعاب أونلاين</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="card" id="authScreen">
-        <h1>🎮 ألعاب أونلاين</h1>
-        
-        <input type="email" id="email" placeholder="الإيميل">
-        <input type="password" id="password" placeholder="كلمة السر">
-        
-        <button class="btn btn-primary" id="loginBtn">تسجيل دخول</button>
-        <button class="btn btn-outline" id="signupBtn">إنشاء حساب جديد</button>
-        
-        <h2 style="text-align:center; font-size:14px; color:#999;">أو</h2>
-        
-        <button class="btn btn-google" id="googleBtn">🔵 دخول بحساب Google</button>
-        <button class="btn btn-guest" id="guestBtn">👤 دخول كزائر</button>
-        
-        <div class="status" id="authStatus"></div>
+    <!-- شاشة التحميل -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="logo-pulse">🎮</div>
+        <div class="loading-bar"><div class="loading-bar-fill" id="loadingFill"></div></div>
+        <div class="loading-text" id="loadingText">جاري التحميل...</div>
     </div>
 
-    <div class="card" id="menuScreen" style="display:none;">
-        <div class="menu-header">
-            <span class="user-badge" id="userBadge">لاعب</span>
-            <button class="btn btn-danger" id="logoutBtn" style="width:auto; padding:8px 15px;">خروج</button>
+    <!-- شاشة تسجيل الدخول -->
+    <div class="container" id="authScreen" style="display:none;">
+        <div class="glass">
+            <h1 class="gradient-text">🎮 GameVerse</h1>
+            <p style="text-align:center; color:var(--text-dim); margin-bottom:24px;">العب مع أصدقائك أونلاين</p>
+            
+            <input type="email" id="email" placeholder="الإيميل">
+            <input type="password" id="password" placeholder="كلمة السر">
+            
+            <button class="btn btn-primary" id="loginBtn">🔓 تسجيل دخول</button>
+            <button class="btn btn-glass" id="signupBtn">✨ إنشاء حساب جديد</button>
+            
+            <div style="text-align:center; color:var(--text-dim); margin:14px 0; font-size:14px;">— أو —</div>
+            
+            <button class="btn btn-google" id="googleBtn">🔵 الدخول بحساب Google</button>
+            <button class="btn btn-glass" id="guestBtn">👤 الدخول كزائر</button>
+        </div>
+    </div>
+
+    <!-- القائمة الرئيسية -->
+    <div id="mainApp" style="display:none;">
+        <div class="topbar">
+            <button class="menu-btn" id="openDrawer">☰</button>
+            <div style="font-weight:900; font-size:18px;" class="gradient-text">GameVerse</div>
+            <div class="coin-badge">🪙 <span id="coinDisplay">0</span></div>
         </div>
         
-        <h1>🎯 اختر لعبة</h1>
-        <div class="game-grid" id="gameGrid"></div>
+        <div class="container">
+            <div class="glass">
+                <h1>اختر لعبة</h1>
+                <div class="games-grid" id="gamesGrid"></div>
+            </div>
+        </div>
     </div>
+
+    <!-- القائمة الجانبية -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <aside class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="avatar" id="drawerAvatar">🎮</div>
+            <div>
+                <div style="font-weight:700;" id="drawerName">لاعب</div>
+                <div style="color:var(--text-dim); font-size:13px;" id="drawerEmail"></div>
+            </div>
+        </div>
+        <ul class="drawer-nav">
+            <li><a href="profile.html"><span class="icon">👤</span> الملف الشخصي</a></li>
+            <li><a href="missions.html"><span class="icon">🎯</span> المهام اليومية</a></li>
+            <li><a href="#" id="editNameBtn"><span class="icon">✏️</span> تعديل الاسم</a></li>
+            <li><a href="#" id="logoutBtn"><span class="icon">🚪</span> تسجيل خروج</a></li>
+        </ul>
+    </aside>
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <script src="app.js"></script>
+    <script src="missions.js"></script>
     <script>
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingFill = document.getElementById('loadingFill');
+        const loadingText = document.getElementById('loadingText');
         const authScreen = document.getElementById('authScreen');
-        const menuScreen = document.getElementById('menuScreen');
-        const statusEl = document.getElementById('authStatus');
-
-        function showStatus(msg, type = 'error') {
-            statusEl.textContent = msg;
-            statusEl.className = 'status ' + type;
-        }
-
-        document.getElementById('loginBtn').onclick = async () => {
-            const email = document.getElementById('email').value.trim();
-            const pass = document.getElementById('password').value;
-            if (!email || !pass) return showStatus('املأ كل الحقول');
-            try { await Auth.login(email, pass); } 
-            catch (e) { showStatus(e.message); }
-        };
-
-        document.getElementById('signupBtn').onclick = async () => {
-            const email = document.getElementById('email').value.trim();
-            const pass = document.getElementById('password').value;
-            if (!email || !pass) return showStatus('املأ كل الحقول');
-            if (pass.length < 6) return showStatus('كلمة السر 6 أحرف على الأقل');
-            try { await Auth.signup(email, pass); } 
-            catch (e) { showStatus(e.message); }
-        };
-
-        document.getElementById('googleBtn').onclick = async () => {
-            try { await Auth.google(); } catch (e) { showStatus(e.message); }
-        };
-
-        document.getElementById('guestBtn').onclick = async () => {
-            try { await Auth.guest(); } catch (e) { showStatus(e.message); }
-        };
-
-        document.getElementById('logoutBtn').onclick = () => Auth.logout();
-
-        const grid = document.getElementById('gameGrid');
-        Object.entries(GAMES).forEach(([key, g]) => {
-            const a = document.createElement('a');
-            a.className = 'game-card';
-            a.href = 'lobby.html?game=' + key;
-            a.innerHTML = `<span class="icon">${g.icon}</span><span class="name">${g.name}</span>
-                           <div style="font-size:12px;color:#888;margin-top:5px;">${g.desc}</div>`;
-            grid.appendChild(a);
+        const mainApp = document.getElementById('mainApp');
+        
+        // شاشة التحميل: 5 ثواني للمسجل، 7 لغير المسجل
+        auth.onAuthStateChanged(async user => {
+            const duration = user ? 5000 : 7000;
+            const startTime = Date.now();
+            const interval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const pct = Math.min((elapsed / duration) * 100, 100);
+                loadingFill.style.width = pct + '%';
+                if (pct >= 100) {
+                    clearInterval(interval);
+                    loadingScreen.classList.add('hide');
+                    if (user) {
+                        await setupApp(user);
+                    } else {
+                        authScreen.style.display = 'block';
+                    }
+                }
+            }, 50);
         });
 
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                authScreen.style.display = 'none';
-                menuScreen.style.display = 'block';
-                document.getElementById('userBadge').textContent = '👤 ' + getUserName(user);
-            } else {
-                authScreen.style.display = 'block';
-                menuScreen.style.display = 'none';
+        async function setupApp(user) {
+            const profile = await User.getOrCreate(user);
+            window.__user = user;
+            window.__profile = profile;
+            
+            authScreen.style.display = 'none';
+            mainApp.style.display = 'block';
+            
+            // بناء شبكة الألعاب
+            const grid = document.getElementById('gamesGrid');
+            grid.innerHTML = '';
+            Object.entries(GAMES).forEach(([key, g]) => {
+                const a = document.createElement('a');
+                a.className = 'game-tile';
+                a.href = 'lobby.html?game=' + key;
+                a.innerHTML = `
+                    <span class="icon">${g.icon}</span>
+                    <div class="name">${g.name}</div>
+                    <div class="players-tag">${g.min}-${g.max} لاعبين</div>
+                `;
+                grid.appendChild(a);
+            });
+            
+            // بيانات القائمة الجانبية
+            document.getElementById('drawerName').textContent = profile.name;
+            document.getElementById('drawerEmail').textContent = profile.email || (profile.isGuest ? 'زائر' : '');
+            document.getElementById('drawerAvatar').textContent = profile.avatar || '🎮';
+            updateCoinDisplay(profile.coins);
+            startPresence(user.uid);
+            
+            // مراقبة العملات لحظياً
+            db.ref('users/' + user.uid + '/coins').on('value', s => {
+                if (s.exists()) updateCoinDisplay(s.val());
+            });
+        }
+
+        // ============ Auth Buttons ============
+        const showErr = (e) => toast(e.message || 'خطأ', 'error');
+        
+        document.getElementById('loginBtn').onclick = async () => {
+            const e = document.getElementById('email').value.trim();
+            const p = document.getElementById('password').value;
+            if (!e || !p) return toast('املأ الحقول', 'error');
+            try { await Auth.login(e, p); } catch (err) { showErr(err); }
+        };
+        document.getElementById('signupBtn').onclick = async () => {
+            const e = document.getElementById('email').value.trim();
+            const p = document.getElementById('password').value;
+            if (!e || !p) return toast('املأ الحقول', 'error');
+            if (p.length < 6) return toast('كلمة السر 6 أحرف على الأقل', 'error');
+            try { await Auth.signup(e, p); } catch (err) { showErr(err); }
+        };
+        document.getElementById('googleBtn').onclick = async () => {
+            try { await Auth.google(); } catch (err) { showErr(err); }
+        };
+        document.getElementById('guestBtn').onclick = async () => {
+            try { await Auth.guest(); } catch (err) { showErr(err); }
+        };
+        
+        // ============ Drawer ============
+        const drawer = document.getElementById('drawer');
+        const overlay = document.getElementById('drawerOverlay');
+        document.getElementById('openDrawer').onclick = () => {
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+        };
+        overlay.onclick = () => {
+            drawer.classList.remove('open');
+            overlay.classList.remove('open');
+        };
+        
+        document.getElementById('logoutBtn').onclick = async (e) => {
+            e.preventDefault();
+            await Auth.logout();
+            location.reload();
+        };
+        
+        document.getElementById('editNameBtn').onclick = async (e) => {
+            e.preventDefault();
+            const newName = prompt('اسمك الجديد:', window.__profile.name);
+            if (!newName || !newName.trim()) return;
+            await User.update(window.__user.uid, { name: newName.trim() });
+            toast('تم تحديث الاسم', 'success');
+            document.getElementById('drawerName').textContent = newName.trim();
+        };
+        
+        // ============ وظيفة اختيار اسم للزوار ============
+        // (هذا الجزء بيتنفذ إذا المستخدم سجل دخول كزائر وما عنده اسم مخصص)
+        auth.onAuthStateChanged(async user => {
+            if (user && user.isAnonymous) {
+                const snap = await db.ref('users/' + user.uid + '/name').once('value');
+                if (!snap.exists() || !snap.val()) {
+                    // اسم افتراضي، ممكن يعدله لاحقاً من القائمة
+                }
             }
         });
     </script>

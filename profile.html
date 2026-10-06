@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملفي الشخصي</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="menu-btn" style="text-decoration:none;">←</a>
+        <div style="font-weight:900;">ملفي الشخصي</div>
+        <div class="coin-badge">🪙 <span id="coinDisplay">0</span></div>
+    </div>
+
+    <div class="container">
+        <div class="glass">
+            <div style="text-align:center; margin-bottom:20px;">
+                <div class="avatar" style="width:80px; height:80px; font-size:36px; margin:0 auto 12px;" id="profileAvatar">🎮</div>
+                <h2 id="profileName" style="margin:0;">...</h2>
+                <p style="color:var(--text-dim); font-size:14px;" id="profileEmail"></p>
+                <div style="margin-top:8px; font-size:14px;">
+                    🪙 <span style="color:var(--gold); font-weight:700;" id="profileCoins">0</span> عملة
+                </div>
+            </div>
+            
+            <h2>📊 إحصائياتي</h2>
+            <div class="stats-grid">
+                <div class="stat-box win"><div class="stat-num" id="statWins">0</div><div class="stat-lbl">فوز</div></div>
+                <div class="stat-box lose"><div class="stat-num" id="statLosses">0</div><div class="stat-lbl">خسارة</div></div>
+                <div class="stat-box draw"><div class="stat-num" id="statDraws">0</div><div class="stat-lbl">تعادل</div></div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box"><div class="stat-num" id="statGames">0</div><div class="stat-lbl">مجموع الألعاب</div></div>
+                <div class="stat-box"><div class="stat-num" id="statWinRate">0%</div><div class="stat-lbl">نسبة الفوز</div></div>
+                <div class="stat-box"><div class="stat-num" id="statCoins">0</div><div class="stat-lbl">العملات</div></div>
+            </div>
+            
+            <h2 style="margin-top:24px;">🎯 مهام اليوم</h2>
+            <div id="missionsList"><p style="text-align:center; color:var(--text-dim);">جاري التحميل...</p></div>
+            
+            <a href="index.html" class="btn btn-glass" style="margin-top:20px; text-decoration:none;">← العودة للرئيسية</a>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script src="missions.js"></script>
+    <script>
+        requireAuth(async (user, profile) => {
+            document.getElementById('profileAvatar').textContent = profile.avatar || '🎮';
+            document.getElementById('profileName').textContent = profile.name;
+            document.getElementById('profileEmail').textContent = profile.email || (profile.isGuest ? 'حساب زائر' : '');
+            document.getElementById('profileCoins').textContent = profile.coins || 0;
+            document.getElementById('statWins').textContent = profile.wins || 0;
+            document.getElementById('statLosses').textContent = profile.losses || 0;
+            document.getElementById('statDraws').textContent = profile.draws || 0;
+            document.getElementById('statGames').textContent = profile.gamesPlayed || 0;
+            const total = (profile.wins || 0) + (profile.losses || 0) + (profile.draws || 0);
+            const rate = total > 0 ? Math.round((profile.wins / total) * 100) : 0;
+            document.getElementById('statWinRate').textContent = rate + '%';
+            document.getElementById('statCoins').textContent = profile.coins || 0;
+            updateCoinDisplay(profile.coins);
+            
+            // مراقبة لحظية
+            db.ref('users/' + user.uid).on('value', s => {
+                const p = s.val();
+                if (!p) return;
+                document.getElementById('profileCoins').textContent = p.coins || 0;
+                document.getElementById('statWins').textContent = p.wins || 0;
+                document.getElementById('statLosses').textContent = p.losses || 0;
+                document.getElementById('statDraws').textContent = p.draws || 0;
+                document.getElementById('statGames').textContent = p.gamesPlayed || 0;
+                document.getElementById('statCoins').textContent = p.coins || 0;
+                const t = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+                document.getElementById('statWinRate').textContent = (t > 0 ? Math.round((p.wins / t) * 100) : 0) + '%';
+                updateCoinDisplay(p.coins);
+            });
+            
+            // المهام
+            await renderMissions(user.uid);
+        });
+
+        async function renderMissions(uid) {
+            const { data } = await Missions.getForUser(uid);
+            const el = document.getElementById('missionsList');
+            el.innerHTML = '';
+            Object.entries(data).forEach(([id, m]) => {
+                const done = m.progress >= m.target;
+                const card = document.createElement('div');
+                card.className = 'mission-card' + (m.claimed ? ' done' : '');
+                card.innerHTML = `
+                    <div class="mission-icon">${m.icon}</div>
+                    <div class="mission-info">
+                        <div class="mission-title">${m.title}</div>
+                        <div class="mission-progress">${m.progress} / ${m.target}</div>
+                    </div>
+                    ${m.claimed 
+                        ? '<span style="color:var(--success); font-weight:700;">✅</span>'
+                        : done 
+                            ? `<button class="btn btn-primary" style="width:auto; padding:8px 14px; margin:0; font-size:13px;" data-claim="${id}">استلم +${m.reward}🪙</button>`
+                            : `<span class="mission-reward">+${m.reward}🪙</span>`
+                    }
+                `;
+                el.appendChild(card);
+            });
+            
+            el.querySelectorAll('[data-claim]').forEach(btn => {
+                btn.onclick = async () => {
+                    try {
+                        const reward = await Missions.claim(uid, btn.dataset.claim);
+                        toast(`+${reward} عملة! 🪙`, 'success');
+                        await renderMissions(uid);
+                    } catch (e) { toast(e.message, 'error'); }
+                };
+            });
+        }
+    </script>
+</body>
+</html>

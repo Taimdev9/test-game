@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اللعبة</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="menu-btn" style="text-decoration:none;">←</a>
+        <div style="font-weight:900;" id="gameTitleTop">اللعبة</div>
+        <div class="coin-badge">🪙 <span id="coinDisplay">0</span></div>
+    </div>
+
+    <div class="container">
+        <div class="glass">
+            <h1 id="gameTitle">🎮</h1>
+            <div class="turn-indicator" id="turnIndicator">...</div>
+            <div id="gameArea"></div>
+            
+            <h2 style="margin-top:24px;">💬 دردشة</h2>
+            <div id="chatContainer"></div>
+            
+            <button class="btn btn-glass" id="exitBtn" style="margin-top:20px;">🚪 الخروج من الغرفة</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script src="missions.js"></script>
+    <script src="chat.js"></script>
+    <script src="games.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const roomCode = params.get('room');
+        if (!roomCode) location.href = 'index.html';
+        
+        let user, profile, roomRef, currentRoom, chatRendered = false;
+
+        requireAuth((u, p) => {
+            user = u; profile = p;
+            updateCoinDisplay(p.coins);
+            roomRef = Rooms.get(roomCode);
+            Rooms.listen(roomCode, onRoomUpdate);
+        });
+
+        function onRoomUpdate(snap) {
+            const room = snap.val();
+            if (!room) { location.href = 'index.html'; return; }
+            currentRoom = room;
+            
+            const info = GAMES[room.gameType];
+            document.getElementById('gameTitleTop').textContent = info.name;
+            document.getElementById('gameTitle').textContent = info.icon + ' ' + info.name;
+            
+            if (!chatRendered) {
+                renderChat(document.getElementById('chatContainer'), roomCode, user, profile);
+                chatRendered = true;
+            }
+            
+            const area = document.getElementById('gameArea');
+            renderGame(area, room, roomCode, user, profile);
+        }
+
+        document.getElementById('exitBtn').onclick = async () => {
+            if (confirm('تأكيد الخروج؟')) {
+                await Rooms.leave(roomCode, user.uid);
+                location.href = 'index.html';
+            }
+        };
+
+        window.addEventListener('beforeunload', () => {
+            if (roomCode && user) Rooms.leave(roomCode, user.uid);
+        });
+    </script>
+</body>
+</html>

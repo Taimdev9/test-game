@@ -17,22 +17,24 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-    <div class="loading-screen" id="loadingScreen">
+    <!-- شاشة التحميل - تظهر مرة وحدة -->
+    <div class="loading-screen" id="loadingScreen" style="display:none;">
         <div class="loader">
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
-            <div class="text"><span>TAIMDEV9</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
+            <div class="text"><span>LOADING…</span></div>
             <div class="line"></div>
         </div>
-        <div class="loading-by">dev Taimdev9</div>
+        <div class="loading-by">Taimdev9</div>
     </div>
 
+    <!-- شاشة تسجيل الدخول -->
     <div class="container" id="authScreen" style="display:none; padding-top:70px;">
         <div class="card" style="max-width:420px; margin:0 auto;">
             <form class="auth-form" onsubmit="return false;">
@@ -57,6 +59,7 @@
         </div>
     </div>
 
+    <!-- القائمة الرئيسية -->
     <div id="mainApp" style="display:none;">
         <div class="topbar">
             <button class="menu-btn" id="openDrawer"><span id="menuIcon"></span></button>
@@ -71,6 +74,7 @@
         </div>
     </div>
 
+    <!-- القائمة الجانبية -->
     <div class="drawer-overlay" id="drawerOverlay"></div>
     <aside class="drawer" id="drawer">
         <div class="drawer-header">
@@ -97,6 +101,7 @@
     <script src="music.js"></script>
     <script src="app.js"></script>
     <script>
+        // ============ تحميل الأيقونات ============
         document.getElementById('guestIcon').innerHTML = ICONS.user;
         document.getElementById('menuIcon').innerHTML = ICONS.menu;
         document.getElementById('coinIcon').innerHTML = ICONS.coin;
@@ -111,24 +116,50 @@
         const mainApp = document.getElementById('mainApp');
         let loadingDone = false, currentUser = null;
 
+        // هل شفت التحميل من قبل في هالجلسة؟
+        const alreadyLoaded = sessionStorage.getItem('gameverse-loaded') === 'yes';
+
+        // إذا سبق شفت التحميل، لا تعرضه
+        if (alreadyLoaded) {
+            loadingScreen.style.display = 'none';
+        } else {
+            loadingScreen.style.display = 'flex';
+        }
+
         function finishLoading(user) {
             if (loadingDone) return;
             loadingDone = true;
-            const duration = user ? 5000 : 7000;
+
+            // المدة: 3.5 ثواني أول مرة فقط، وبعدها صفر
+            const duration = alreadyLoaded ? 0 : 3500;
+
             setTimeout(() => {
                 loadingScreen.classList.add('hide');
-                if (user) setupApp(user);
-                else authScreen.style.display = 'block';
+                sessionStorage.setItem('gameverse-loaded', 'yes');
+                if (user) {
+                    setupApp(user);
+                } else {
+                    authScreen.style.display = 'block';
+                }
             }, duration);
         }
-        setTimeout(() => { if (!loadingDone) finishLoading(currentUser); }, 9000);
-        auth.onAuthStateChanged(user => { currentUser = user; finishLoading(user); });
+
+        // مؤقت أمان: إذا Firebase تأخر، نكمل بعد 6 ثواني
+        setTimeout(() => { if (!loadingDone) finishLoading(currentUser); }, 6000);
+
+        auth.onAuthStateChanged(user => {
+            currentUser = user;
+            finishLoading(user);
+        });
 
         async function setupApp(user) {
             const profile = await User.getOrCreate(user);
-            window.__user = user; window.__profile = profile;
+            window.__user = user;
+            window.__profile = profile;
+
             authScreen.style.display = 'none';
             mainApp.style.display = 'block';
+
             const grid = document.getElementById('gamesGrid');
             grid.innerHTML = '';
             Object.entries(GAMES).forEach(([key, g]) => {
@@ -138,17 +169,22 @@
                 a.innerHTML = `<div class="icon">${g.icon}</div><div class="name">${g.name}</div><div class="players-tag">${g.min}-${g.max} لاعبين</div>`;
                 grid.appendChild(a);
             });
+
             document.getElementById('drawerName').textContent = profile.name;
             document.getElementById('drawerEmail').textContent = profile.email || (profile.isGuest ? 'زائر' : '');
             document.getElementById('drawerAvatar').innerHTML = getAvatarSVG(profile.avatar);
             updateCoinDisplay(profile.coins);
             startPresence(user.uid);
-            db.ref('users/' + user.uid + '/coins').on('value', s => { if (s.exists()) updateCoinDisplay(s.val()); });
+
+            db.ref('users/' + user.uid + '/coins').on('value', s => {
+                if (s.exists()) updateCoinDisplay(s.val());
+            });
             db.ref('users/' + user.uid + '/avatar').on('value', s => {
                 if (s.exists()) document.getElementById('drawerAvatar').innerHTML = getAvatarSVG(s.val());
             });
         }
 
+        // ============ Auth Buttons ============
         const showErr = e => toast(e.message || 'خطأ', 'error');
         document.getElementById('loginBtn').onclick = async () => {
             const e = document.getElementById('email').value.trim(), p = document.getElementById('password').value;
@@ -161,25 +197,46 @@
             if (p.length < 6) return toast('كلمة السر 6 أحرف على الأقل', 'error');
             try { await Auth.signup(e, p); } catch (err) { showErr(err); }
         };
-        document.getElementById('googleBtn').onclick = async () => { try { await Auth.google(); } catch (err) { showErr(err); } };
-        document.getElementById('guestBtn').onclick = async () => { try { await Auth.guest(); } catch (err) { showErr(err); } };
+        document.getElementById('googleBtn').onclick = async () => {
+            try { await Auth.google(); } catch (err) { showErr(err); }
+        };
+        document.getElementById('guestBtn').onclick = async () => {
+            try { await Auth.guest(); } catch (err) { showErr(err); }
+        };
         document.getElementById('forgotBtn').onclick = async e => {
             e.preventDefault();
             const email = document.getElementById('email').value.trim();
             if (!email) return toast('اكتب إيميلك أولاً', 'error');
-            try { await auth.sendPasswordResetEmail(email); toast('تم إرسال الرابط ✅', 'success'); } catch (err) { showErr(err); }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                toast('تم إرسال الرابط ✅', 'success');
+            } catch (err) { showErr(err); }
         };
+
+        // ============ Drawer ============
         const drawer = document.getElementById('drawer'), overlay = document.getElementById('drawerOverlay');
-        document.getElementById('openDrawer').onclick = () => { drawer.classList.add('open'); overlay.classList.add('open'); };
-        overlay.onclick = () => { drawer.classList.remove('open'); overlay.classList.remove('open'); };
-        document.getElementById('logoutBtn').onclick = async e => { e.preventDefault(); await Auth.logout(); location.reload(); };
+        document.getElementById('openDrawer').onclick = () => {
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+        };
+        overlay.onclick = () => {
+            drawer.classList.remove('open');
+            overlay.classList.remove('open');
+        };
+        document.getElementById('logoutBtn').onclick = async e => {
+            e.preventDefault();
+            await Auth.logout();
+            // مسح العلم عشان يبين التحميل مرة ثانية بعد تسجيل الخروج
+            sessionStorage.removeItem('gameverse-loaded');
+            location.reload();
+        };
 
         // ============ Service Worker ============
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('✅ Service Worker registered:', reg.scope);
-                }).catch(err => console.log('❌ Service Worker failed:', err));
+                    console.log('✅ SW registered:', reg.scope);
+                }).catch(err => console.log('❌ SW failed:', err));
             });
         }
     </script>

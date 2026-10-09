@@ -3,10 +3,25 @@
     "short_name": "GameVerse",
     "description": "العب مع أصدقائك أونلاين - 9 ألعاب جماعية",
     "start_url": "./index.html",
+    "scope": "./",
     "display": "standalone",
     "orientation": "portrait",
     "background_color": "#f7f7f8",
     "theme_color": "#18181b",
     "lang": "ar",
-    "dir": "rtl"
+    "dir": "rtl",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%2318181b'/%3E%3Ctext x='50%25' y='50%25' font-size='300' text-anchor='middle' dominant-baseline='central' fill='white'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%2318181b'/%3E%3Ctext x='50%25' y='50%25' font-size='240' text-anchor='middle' dominant-baseline='central' fill='white'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
+        }
+    ]
 }

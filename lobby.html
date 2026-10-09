@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة الانتظار</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="menu-btn" style="text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div style="font-weight:900;" id="gameTitleTop">الغرفة</div>
+        <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
+    </div>
+
+    <div class="container">
+        <div class="card" id="preRoom">
+            <h1 id="gameTitle">🎮</h1>
+            <p style="text-align:center; color:var(--text-dim); margin-bottom:20px;" id="gameDesc"></p>
+            <button class="btn btn-primary" id="createBtn">إنشاء غرفة جديدة</button>
+            <div class="separator"><div class="line"></div><span>أو</span><div class="line"></div></div>
+            <input type="text" id="joinCode" placeholder="كود الغرفة" maxlength="6"
+                   style="text-align:center; font-size:20px; letter-spacing:6px; text-transform:uppercase; font-weight:900;">
+            <button class="btn btn-outline" id="joinBtn">دخول الغرفة</button>
+        </div>
+
+        <div class="card" id="roomPanel" style="display:none;">
+            <h2 style="text-align:center; margin-bottom:8px;">كود الغرفة</h2>
+            <div class="code-box"><div class="code-text" id="roomCode">------</div></div>
+            <button class="btn btn-outline" id="copyBtn" style="margin-bottom:20px;">نسخ رابط الدعوة</button>
+            <h2>اللاعبون (<span id="playerCount">0</span>/<span id="maxPlayers">2</span>)</h2>
+            <div id="playersList"></div>
+            <div id="readyPanel" style="margin-top:20px;">
+                <button class="btn btn-success" id="readyBtn">أنا جاهز</button>
+                <p style="text-align:center; font-size:12px; color:var(--text-dim); margin-top:8px;">اللعبة تبدأ لما كل اللاعبين يصيروا جاهزين</p>
+            </div>
+            <h2 style="margin-top:24px;">الدردشة</h2>
+            <div id="chatContainer"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.getElementById('coinIcon').innerHTML = ICONS.coin;
+        const params = new URLSearchParams(location.search);
+        const gameType = params.get('game') || 'tictactoe';
+        const urlRoom = params.get('room');
+        const gameInfo = GAMES[gameType];
+        let user, profile, roomCode, roomRef, isReady = false, chatRendered = false;
+
+        document.getElementById('gameTitle').innerHTML = gameInfo.icon + ' ' + gameInfo.name;
+        document.getElementById('gameDesc').textContent = gameInfo.desc + ' — ' + gameInfo.min + ' إلى ' + gameInfo.max + ' لاعبين';
+        document.getElementById('gameTitleTop').textContent = gameInfo.name;
+        document.getElementById('maxPlayers').textContent = gameInfo.max;
+
+        requireAuth(async (u, p) => {
+            user = u; profile = p;
+            updateCoinDisplay(profile.coins);
+            if (urlRoom) await enterRoom(urlRoom.toUpperCase());
+        });
+
+        document.getElementById('createBtn').onclick = async () => {
+            try {
+                const code = await Rooms.create(gameType, user, profile.name);
+                await enterRoom(code);
+            } catch (e) { toast(e.message, 'error'); }
+        };
+        document.getElementById('joinBtn').onclick = async () => {
+            const c = document.getElementById('joinCode').value.trim().toUpperCase();
+            if (c.length !== 6) return toast('الكود 6 أحرف', 'error');
+            await enterRoom(c);
+        };
+
+        async function enterRoom(code) {
+            try {
+                await Rooms.join(code, user, profile.name);
+                roomCode = code;
+                document.getElementById('preRoom').style.display = 'none';
+                document.getElementById('roomPanel').style.display = 'block';
+                document.getElementById('roomCode').textContent = code;
+                if (!chatRendered) {
+                    renderChat(document.getElementById('chatContainer'), code, user, profile);
+                    chatRendered = true;
+                }
+                roomRef = Rooms.get(code);
+                Rooms.listen(code, onRoomUpdate);
+            } catch (e) { toast(e.message, 'error'); }
+        }
+
+        function onRoomUpdate(snap) {
+            const room = snap.val();
+            if (!room) { location.href = 'index.html'; return; }
+            const players = room.players || {};
+            const ids = Object.keys(players);
+            document.getElementById('playerCount').textContent = ids.length;
+            const list = document.getElementById('playersList');
+            list.innerHTML = '';
+            ids.forEach(uid => {
+                const p = players[uid];
+                const isHost = uid === room.host;
+                const item = document.createElement('div');
+                item.className = 'player-item' + (p.ready ? ' ready' : '');
+                item.innerHTML = `
+                    <div class="avatar-sm">${escapeHtml(p.name[0])}</div>
+                    <div class="name">${escapeHtml(p.name)}</div>
+                    ${isHost ? '<div class="host-tag">👑</div>' : ''}
+                    ${p.ready ? '<div class="ready-tag">جاهز</div>' : ''}
+                `;
+                list.appendChild(item);
+            });
+            const me = players[user.uid];
+            const btn = document.getElementById('readyBtn');
+            if (me) {
+                if (me.ready) { btn.textContent = 'إلغاء الجاهزية'; btn.className = 'btn btn-outline'; }
+                else { btn.textContent = 'أنا جاهز'; btn.className = 'btn btn-success'; }
+            }
+            const allReady = ids.length >= room.minPlayers && ids.every(id => players[id].ready);
+            if (allReady && room.status === 'waiting') {
+                roomRef.update({ status: 'playing' }).then(() => {
+                    setTimeout(() => {
+                        location.href = room.gameType === 'drawing'
+                            ? 'drawing.html?room=' + roomCode
+                            : 'game.html?room=' + roomCode;
+                    }, 500);
+                });
+            }
+        }
+
+        document.getElementById('readyBtn').onclick = async () => {
+            isReady = !isReady;
+            await Rooms.setReady(roomCode, user.uid, isReady);
+            if (isReady) Missions.trackProgress(user.uid, 'readyCount', 1);
+        };
+        document.getElementById('copyBtn').onclick = () => {
+            const url = location.origin + location.pathname + '?game=' + gameType + '&room=' + roomCode;
+            navigator.clipboard.writeText(url).then(() => toast('تم النسخ! ✅', 'success'));
+        };
+        window.addEventListener('beforeunload', () => {
+            if (roomCode && user) Rooms.leave(roomCode, user.uid);
+        });
+    </script>
+</body>
+</html>

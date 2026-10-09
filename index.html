@@ -2,12 +2,19 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GameVerse</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#18181b">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GameVerse">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%2318181b'/%3E%3Ctext x='50%25' y='50%25' font-size='300' text-anchor='middle' dominant-baseline='central' fill='white'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
 </head>
 <body>
     <div class="loading-screen" id="loadingScreen">
@@ -167,7 +174,14 @@
         overlay.onclick = () => { drawer.classList.remove('open'); overlay.classList.remove('open'); };
         document.getElementById('logoutBtn').onclick = async e => { e.preventDefault(); await Auth.logout(); location.reload(); };
 
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+        // ============ Service Worker ============
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    console.log('✅ Service Worker registered:', reg.scope);
+                }).catch(err => console.log('❌ Service Worker failed:', err));
+            });
+        }
     </script>
 </body>
 </html>

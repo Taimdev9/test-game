@@ -14,12 +14,11 @@
         <div style="font-weight:900;">ملفي الشخصي</div>
         <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
     </div>
-
     <div class="container">
         <div class="card">
             <div style="text-align:center; margin-bottom:20px;">
-                <div class="avatar" style="width:80px; height:80px; font-size:36px; margin:0 auto 12px;" id="profileAvatar">🎮</div>
-                <h2 id="profileName" style="margin:0;">...</h2>
+                <div class="avatar-big" id="profileAvatar"></div>
+                <h2 id="profileName" style="margin:12px 0 4px;">...</h2>
                 <p style="color:var(--text-dim); font-size:13px;" id="profileEmail"></p>
                 <div style="margin-top:8px; font-size:14px; display:flex; align-items:center; justify-content:center; gap:6px;">
                     <span id="coinIcon2"></span><span style="color:var(--gold); font-weight:700;" id="profileCoins">0</span>
@@ -40,7 +39,6 @@
 
             <h2 style="margin-top:24px;" id="missions">مهام اليوم</h2>
             <div id="missionsList"><p style="text-align:center; color:var(--text-dim);">جاري التحميل...</p></div>
-
             <a href="index.html" class="btn btn-outline" style="margin-top:20px; text-decoration:none;">العودة للرئيسية</a>
         </div>
     </div>
@@ -48,13 +46,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="icons.js"></script>
+    <script src="i18n.js"></script>
+    <script src="music.js"></script>
     <script src="app.js"></script>
     <script>
         document.getElementById('coinIcon').innerHTML = ICONS.coin;
         document.getElementById('coinIcon2').innerHTML = ICONS.coin;
 
         requireAuth(async (user, profile) => {
-            document.getElementById('profileAvatar').textContent = profile.avatar || '🎮';
+            document.getElementById('profileAvatar').innerHTML = getAvatarSVG(profile.avatar);
             document.getElementById('profileName').textContent = profile.name;
             document.getElementById('profileEmail').textContent = profile.email || (profile.isGuest ? 'حساب زائر' : '');
             document.getElementById('profileCoins').textContent = profile.coins || 0;
@@ -70,6 +71,7 @@
             db.ref('users/' + user.uid).on('value', s => {
                 const p = s.val();
                 if (!p) return;
+                document.getElementById('profileAvatar').innerHTML = getAvatarSVG(p.avatar);
                 document.getElementById('profileCoins').textContent = p.coins || 0;
                 document.getElementById('statWins').textContent = p.wins || 0;
                 document.getElementById('statLosses').textContent = p.losses || 0;

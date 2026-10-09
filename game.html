@@ -14,7 +14,6 @@
         <div style="font-weight:900;" id="gameTitleTop">اللعبة</div>
         <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
     </div>
-
     <div class="container">
         <div class="card">
             <h1 id="gameTitle">🎮</h1>
@@ -29,8 +28,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="icons.js"></script>
+    <script src="i18n.js"></script>
+    <script src="music.js"></script>
     <script src="app.js"></script>
     <script src="games.js"></script>
+    <script src="uno.js"></script>
     <script>
         document.getElementById('coinIcon').innerHTML = ICONS.coin;
         const params = new URLSearchParams(location.search);
@@ -52,19 +55,13 @@
             const info = GAMES[room.gameType];
             document.getElementById('gameTitleTop').textContent = info.name;
             document.getElementById('gameTitle').innerHTML = info.icon + ' ' + info.name;
-            if (!chatRendered) {
-                renderChat(document.getElementById('chatContainer'), roomCode, user, profile);
-                chatRendered = true;
-            }
+            if (!chatRendered) { renderChat(document.getElementById('chatContainer'), roomCode, user, profile); chatRendered = true; }
             const area = document.getElementById('gameArea');
             renderGame(area, room, roomCode, user, profile);
         }
 
         document.getElementById('exitBtn').onclick = async () => {
-            if (confirm('تأكيد الخروج؟')) {
-                await Rooms.leave(roomCode, user.uid);
-                location.href = 'index.html';
-            }
+            if (confirm('تأكيد الخروج؟')) { await Rooms.leave(roomCode, user.uid); location.href = 'index.html'; }
         };
         window.addEventListener('beforeunload', () => {
             if (roomCode && user) Rooms.leave(roomCode, user.uid);

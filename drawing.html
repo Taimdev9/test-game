@@ -14,7 +14,6 @@
         <div style="font-weight:900;">الرسم والتخمين</div>
         <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
     </div>
-
     <div class="container">
         <div class="card">
             <div class="turn-indicator" id="turnIndicator">...</div>
@@ -43,6 +42,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="icons.js"></script>
+    <script src="i18n.js"></script>
+    <script src="music.js"></script>
     <script src="app.js"></script>
     <script>
         document.getElementById('coinIcon').innerHTML = ICONS.coin;
@@ -51,8 +53,7 @@
         const roomCode = params.get('room');
         if (!roomCode) location.href = 'index.html';
         let user, profile, roomRef, room, isDrawer = false, chatRendered = false;
-        let drawing = false, lastX = 0, lastY = 0, currentColor = '#000000', currentSize = 3;
-        let canvasListenersSet = false;
+        let drawing = false, lastX = 0, lastY = 0, currentColor = '#000000', currentSize = 3, canvasListenersSet = false;
 
         const colors = ['#000000','#dc2626','#2563eb','#16a34a','#eab308','#9333ea','#ea580c','#0891b2','#78350f','#ffffff'];
         const colorPicker = document.getElementById('colorPicker');
@@ -93,8 +94,7 @@
             const snap = await roomRef.once('value');
             const r = snap.val();
             const ids = Object.keys(r.players);
-            const drawerIdx = Math.floor(Math.random() * ids.length);
-            const drawer = ids[drawerIdx];
+            const drawer = ids[Math.floor(Math.random() * ids.length)];
             const word = DRAW_WORDS[Math.floor(Math.random() * DRAW_WORDS.length)];
             await roomRef.child('state').set({
                 status: 'playing', drawer, word, guesses: {},
@@ -105,10 +105,7 @@
         function onRoomUpdate(snap) {
             room = snap.val();
             if (!room) { location.href = 'index.html'; return; }
-            if (!chatRendered) {
-                renderChat(document.getElementById('chatContainer'), roomCode, user, profile);
-                chatRendered = true;
-            }
+            if (!chatRendered) { renderChat(document.getElementById('chatContainer'), roomCode, user, profile); chatRendered = true; }
             const s = room.state;
             if (!s) { setTurnIndicator('جاري التحضير...'); return; }
             isDrawer = s.drawer === user.uid;
@@ -143,7 +140,7 @@
         function renderScores(scores) {
             const board = document.getElementById('scoreBoard');
             const entries = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-            if (entries.length === 0) { board.innerHTML = ''; return; }
+            if (!entries.length) { board.innerHTML = ''; return; }
             board.innerHTML = '<h3>النقاط</h3>' + entries.map(([uid, sc], i) =>
                 `<div class="player-item"><div style="width:24px;font-weight:900;">${i + 1}</div>
                  <div class="name">${escapeHtml(room.players[uid]?.name || '؟')}</div>
@@ -156,8 +153,7 @@
             const ctx = c.getContext('2d');
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, c.width, c.height);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         }
         function attachDrawEvents() {
             const c = document.getElementById('drawCanvas');
@@ -168,33 +164,19 @@
                 const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
                 return { x: x * (c.width / rect.width), y: y * (c.height / rect.height) };
             };
-            const start = e => {
-                e.preventDefault();
-                drawing = true;
-                const p = getPos(e);
-                lastX = p.x; lastY = p.y;
-            };
+            const start = e => { e.preventDefault(); drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; };
             const move = e => {
                 if (!drawing) return;
                 e.preventDefault();
                 const p = getPos(e);
-                ctx.strokeStyle = currentColor;
-                ctx.lineWidth = currentSize;
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(p.x, p.y);
-                ctx.stroke();
-                roomRef.child('state/strokes').push({
-                    x1: lastX, y1: lastY, x2: p.x, y2: p.y,
-                    color: currentColor, size: currentSize
-                });
+                ctx.strokeStyle = currentColor; ctx.lineWidth = currentSize;
+                ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+                roomRef.child('state/strokes').push({ x1: lastX, y1: lastY, x2: p.x, y2: p.y, color: currentColor, size: currentSize });
                 lastX = p.x; lastY = p.y;
             };
             const end = () => { drawing = false; };
-            c.addEventListener('mousedown', start);
-            c.addEventListener('mousemove', move);
-            c.addEventListener('mouseup', end);
-            c.addEventListener('mouseleave', end);
+            c.addEventListener('mousedown', start); c.addEventListener('mousemove', move);
+            c.addEventListener('mouseup', end); c.addEventListener('mouseleave', end);
             c.addEventListener('touchstart', start, { passive: false });
             c.addEventListener('touchmove', move, { passive: false });
             c.addEventListener('touchend', end);
@@ -203,17 +185,11 @@
             const c = document.getElementById(canvasId);
             if (!c) return;
             const ctx = c.getContext('2d');
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            ctx.fillStyle = 'white'; ctx.fillRect(0, 0, c.width, c.height);
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             Object.values(strokes).forEach(s => {
-                ctx.strokeStyle = s.color;
-                ctx.lineWidth = s.size;
-                ctx.beginPath();
-                ctx.moveTo(s.x1, s.y1);
-                ctx.lineTo(s.x2, s.y2);
-                ctx.stroke();
+                ctx.strokeStyle = s.color; ctx.lineWidth = s.size;
+                ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
             });
         }
 
@@ -223,14 +199,9 @@
             if (!c) return;
             const s = snap.val();
             const ctx = c.getContext('2d');
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.size;
-            ctx.beginPath();
-            ctx.moveTo(s.x1, s.y1);
-            ctx.lineTo(s.x2, s.y2);
-            ctx.stroke();
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.strokeStyle = s.color; ctx.lineWidth = s.size;
+            ctx.beginPath(); ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); ctx.stroke();
         });
 
         document.getElementById('clearBtn').onclick = async () => {
@@ -238,7 +209,6 @@
             await roomRef.child('state/strokes').remove();
             setupCanvas();
         };
-
         document.getElementById('guessBtn').onclick = async () => {
             const g = document.getElementById('guessInput').value.trim();
             if (!g || !room.state) return;

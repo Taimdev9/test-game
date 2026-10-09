@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المتصدرون</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="topbar">
+        <a href="index.html" class="menu-btn" style="text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
+        <div style="font-weight:900;">المتصدرون</div>
+        <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
+    </div>
+    <div class="container">
+        <div class="card">
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <button class="btn btn-primary" data-tab="wins" style="flex:1;">الأكثر فوزاً</button>
+                <button class="btn btn-outline" data-tab="coins" style="flex:1;">الأكثر عملات</button>
+                <button class="btn btn-outline" data-tab="gamesPlayed" style="flex:1;">الأكثر لعباً</button>
+            </div>
+            <div id="leaderboardList">جاري التحميل...</div>
+        </div>
+    </div>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="icons.js"></script>
+    <script src="i18n.js"></script>
+    <script src="music.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.getElementById('coinIcon').innerHTML = ICONS.coin;
+        let currentTab = 'wins';
+        requireAuth((user, profile) => {
+            updateCoinDisplay(profile.coins);
+            loadLeaderboard('wins');
+        });
+        document.querySelectorAll('[data-tab]').forEach(btn => {
+            btn.onclick = () => {
+                currentTab = btn.dataset.tab;
+                document.querySelectorAll('[data-tab]').forEach(b => {
+                    b.className = b === btn ? 'btn btn-primary' : 'btn btn-outline';
+                });
+                loadLeaderboard(currentTab);
+            };
+        });
+        async function loadLeaderboard(field) {
+            const el = document.getElementById('leaderboardList');
+            el.innerHTML = '<p style="text-align:center; color:var(--text-dim);">جاري التحميل...</p>';
+            const snap = await db.ref('users').once('value');
+            const users = [];
+            snap.forEach(child => {
+                const u = child.val();
+                if (u.name) users.push(u);
+            });
+            users.sort((a, b) => (b[field] || 0) - (a[field] || 0));
+            const top20 = users.slice(0, 20);
+            if (!top20.length) {
+                el.innerHTML = '<p style="text-align:center; color:var(--text-dim);">لا يوجد لاعبون بعد</p>';
+                return;
+            }
+            el.innerHTML = top20.map((u, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+                const value = field === 'wins' ? u.wins || 0 : field === 'coins' ? u.coins || 0 : u.gamesPlayed || 0;
+                const icon = field === 'wins' ? '🏆' : field === 'coins' ? '🪙' : '🎮';
+                return `
+                    <div class="player-item" style="margin-bottom:6px;">
+                        <div style="width:30px; font-weight:900; text-align:center;">${medal}</div>
+                        <div class="avatar-sm">${getAvatarSVG(u.avatar)}</div>
+                        <div class="name">${escapeHtml(u.name)}</div>
+                        <div style="font-weight:700; color:var(--gold);">${icon} ${value}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

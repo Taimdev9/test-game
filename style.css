@@ -383,3 +383,100 @@ input:focus, textarea:focus { outline: none; border-color: var(--text); }
     .settings-label svg,
     .settings-label span[id^="icon"] svg { width: 20px; height: 20px; }
 }
+/* ============ Avatar Picker ============ */
+.avatar-big {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: var(--text);
+    padding: 16px;
+}
+.avatar-big svg { width: 52px; height: 52px; stroke-width: 2; }
+
+.avatar-picker {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 12px 0;
+}
+.avatar-option {
+    aspect-ratio: 1;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: var(--text-mid);
+    padding: 12px;
+}
+.avatar-option svg { width: 100%; height: 100%; stroke-width: 2; }
+.avatar-option:hover { border-color: var(--border-2); transform: translateY(-2px); }
+.avatar-option.active {
+    border-color: var(--text);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+}
+[data-theme="dark"] .avatar-option.active { box-shadow: 0 0 0 3px rgba(255,255,255,0.08); }
+
+/* ============ UNO ============ */
+.uno-center { text-align: center; margin: 20px 0; }
+.uno-hand {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 15px 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.uno-card {
+    width: 70px;
+    height: 100px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 24px;
+    color: white;
+    border: 3px solid white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    position: relative;
+    transition: all 0.2s;
+    user-select: none;
+}
+.uno-card.playable {
+    cursor: pointer;
+    box-shadow: 0 0 0 3px var(--text), 0 4px 10px rgba(0,0,0,0.3);
+}
+.uno-card.playable:hover { transform: translateY(-10px) scale(1.05); }
+.uno-red    { background: #dc2626; }
+.uno-blue   { background: #2563eb; }
+.uno-green  { background: #16a34a; }
+.uno-yellow { background: #eab308; color: #18181b; }
+.uno-wild   { background: linear-gradient(135deg, #dc2626 0%, #2563eb 33%, #16a34a 66%, #eab308 100%); }
+.uno-card-value { font-size: 26px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+
+/* ============ Music Button ============ */
+.music-btn.playing svg { animation: musicPulse 1s infinite; }
+@keyframes musicPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+@media (max-width: 480px) {
+    .avatar-picker { gap: 8px; }
+    .avatar-big { width: 80px; height: 80px; padding: 12px; }
+    .avatar-big svg { width: 42px; height: 42px; }
+    .uno-card { width: 55px; height: 80px; font-size: 20px; }
+    .uno-card-value { font-size: 20px; }
+}

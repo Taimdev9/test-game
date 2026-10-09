@@ -1,19 +1,14 @@
-// ================== Router ==================
 function renderGame(area, room, roomCode, user, profile) {
     const renderers = {
-        tictactoe: renderTicTacToe,
-        rps: renderRPS,
-        reaction: renderReaction,
-        wordchain: renderWordChain,
-        connect4: renderConnect4,
-        guessnum: renderGuessNum,
-        typing: renderTyping
+        tictactoe: renderTicTacToe, rps: renderRPS, reaction: renderReaction,
+        wordchain: renderWordChain, connect4: renderConnect4,
+        guessnum: renderGuessNum, typing: renderTyping, uno: renderUNO
     };
     const fn = renderers[room.gameType];
     if (fn) fn(area, room, roomCode, user, profile);
 }
 
-// ================== X-O ==================
+// X-O
 function renderTicTacToe(area, room, code, user) {
     const ids = Object.keys(room.players).sort();
     const roomRef = db.ref('rooms/' + code);
@@ -25,7 +20,6 @@ function renderTicTacToe(area, room, code, user) {
     const mySymbol = ids.indexOf(user.uid) === 0 ? 'X' : 'O';
     const myTurn = turn === user.uid && !winner;
     setTurnIndicator(winner ? resultText(winner, user) : (myTurn ? '🎯 دورك!' : '⏳ دور الخصم...'), myTurn);
-
     let html = '<div class="ttt-board">';
     board.forEach((v, i) => {
         const cls = v === 'X' ? 'x filled' : v === 'O' ? 'o filled' : '';
@@ -34,13 +28,11 @@ function renderTicTacToe(area, room, code, user) {
     });
     html += '</div>';
     area.innerHTML = html;
-
     area.querySelectorAll('.ttt-cell').forEach(cell => {
         cell.onclick = () => {
             const i = +cell.dataset.i;
             if (!myTurn || board[i] || winner) return;
-            const nb = [...board];
-            nb[i] = mySymbol;
+            const nb = [...board]; nb[i] = mySymbol;
             const w = checkTTT(nb, room);
             const next = ids.find(id => id !== user.uid);
             roomRef.child('state').update({ board: nb, turn: next, winner: w });
@@ -51,19 +43,14 @@ function renderTicTacToe(area, room, code, user) {
 function checkTTT(b, room) {
     const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     const ids = Object.keys(room.players).sort();
-    for (const [a,c,d] of lines) {
-        if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a] === 'X' ? ids[0] : ids[1];
-    }
+    for (const [a,c,d] of lines) if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a] === 'X' ? ids[0] : ids[1];
     return b.every(x => x) ? 'draw' : null;
 }
 
-// ================== RPS ==================
+// RPS
 function renderRPS(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
-    if (!room.state) {
-        roomRef.child('state').set({ choices: {}, scores: {}, round: 1 });
-        return;
-    }
+    if (!room.state) { roomRef.child('state').set({ choices: {}, scores: {}, round: 1 }); return; }
     const s = room.state;
     const oppId = Object.keys(room.players).find(id => id !== user.uid);
     const myChoice = s.choices?.[user.uid];
@@ -72,19 +59,15 @@ function renderRPS(area, room, code, user) {
     let status = '🎯 اختر!';
     if (bothChose) {
         const r = rpsResult(myChoice, oppChoice);
-        status = r === 'win' ? '🎉 فزت الجولة!' : r === 'lose' ? '😢 خسرت الجولة' : '🤝 تعادل';
+        status = r === 'win' ? '🎉 فزت!' : r === 'lose' ? '😢 خسرت' : '🤝 تعادل';
     } else if (myChoice) status = '⏳ بانتظار الخصم...';
-    const myScore = s.scores?.[user.uid] || 0;
-    const oppScore = s.scores?.[oppId] || 0;
+    const myScore = s.scores?.[user.uid] || 0, oppScore = s.scores?.[oppId] || 0;
     setTurnIndicator(`${status} — أنت ${myScore} : ${oppScore} الخصم`, !!myChoice && !bothChose);
-
-    area.innerHTML = `
-        <div class="rps-choices">
-            <button class="rps-btn ${myChoice === 'rock' ? 'selected' : ''}" data-c="rock">✊</button>
-            <button class="rps-btn ${myChoice === 'paper' ? 'selected' : ''}" data-c="paper">✋</button>
-            <button class="rps-btn ${myChoice === 'scissors' ? 'selected' : ''}" data-c="scissors">✌️</button>
-        </div>
-    `;
+    area.innerHTML = `<div class="rps-choices">
+        <button class="rps-btn ${myChoice === 'rock' ? 'selected' : ''}" data-c="rock">✊</button>
+        <button class="rps-btn ${myChoice === 'paper' ? 'selected' : ''}" data-c="paper">✋</button>
+        <button class="rps-btn ${myChoice === 'scissors' ? 'selected' : ''}" data-c="scissors">✌️</button>
+    </div>`;
     area.querySelectorAll('.rps-btn').forEach(btn => {
         btn.onclick = async () => {
             if (myChoice) return;
@@ -106,13 +89,10 @@ function rpsResult(a, b) {
     return 'lose';
 }
 
-// ================== Reaction ==================
+// Reaction
 function renderReaction(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
-    if (!room.state) {
-        roomRef.child('state').set({ status: 'idle', winner: null });
-        return;
-    }
+    if (!room.state) { roomRef.child('state').set({ status: 'idle', winner: null }); return; }
     const s = room.state;
     const ids = Object.keys(room.players).sort();
     const isHost = user.uid === ids[0];
@@ -141,14 +121,11 @@ function renderReaction(area, room, code, user) {
     };
 }
 
-// ================== Word Chain ==================
+// Word Chain
 function renderWordChain(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
     const ids = Object.keys(room.players).sort();
-    if (!room.state) {
-        roomRef.child('state').set({ words: [], turn: ids[0] });
-        return;
-    }
+    if (!room.state) { roomRef.child('state').set({ words: [], turn: ids[0] }); return; }
     const s = room.state;
     const isMyTurn = s.turn === user.uid;
     const last = s.words[s.words.length - 1];
@@ -178,24 +155,19 @@ function renderWordChain(area, room, code, user) {
     if (inp) inp.onkeypress = e => { if (e.key === 'Enter') send(); };
 }
 
-// ================== Connect 4 ==================
+// Connect 4
 function renderConnect4(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
     const ids = Object.keys(room.players).sort();
-    if (!room.state) {
-        roomRef.child('state').set({ board: Array(42).fill(''), turn: ids[0], winner: null });
-        return;
-    }
+    if (!room.state) { roomRef.child('state').set({ board: Array(42).fill(''), turn: ids[0], winner: null }); return; }
     const { board, turn, winner } = room.state;
     const myColor = ids.indexOf(user.uid) === 0 ? 'red' : 'yellow';
     const myTurn = turn === user.uid && !winner;
     setTurnIndicator(winner ? (winner === 'draw' ? '🤝 تعادل!' : (winner === user.uid ? '🎉 فزت!' : '😢 خسرت')) : (myTurn ? '🎯 دورك!' : '⏳ دور الخصم...'), myTurn);
     let html = '<div class="c4-board">';
-    for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 7; c++) {
-            const v = board[r * 7 + c] || '';
-            html += `<div class="c4-cell ${v}" data-c="${c}"></div>`;
-        }
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) {
+        const v = board[r * 7 + c] || '';
+        html += `<div class="c4-cell ${v}" data-c="${c}"></div>`;
     }
     html += '</div>';
     area.innerHTML = html;
@@ -206,8 +178,7 @@ function renderConnect4(area, room, code, user) {
             let row = -1;
             for (let r = 5; r >= 0; r--) if (!board[r * 7 + col]) { row = r; break; }
             if (row < 0) return;
-            const nb = [...board];
-            nb[row * 7 + col] = myColor;
+            const nb = [...board]; nb[row * 7 + col] = myColor;
             const w = checkC4(nb, room);
             const next = ids.find(id => id !== user.uid);
             roomRef.child('state').update({ board: nb, turn: next, winner: w });
@@ -219,27 +190,22 @@ function checkC4(b, room) {
     const ids = Object.keys(room.players).sort();
     const get = (r, c) => (r >= 0 && r < 6 && c >= 0 && c < 7) ? b[r * 7 + c] : '';
     const dirs = [[0,1],[1,0],[1,1],[1,-1]];
-    for (let r = 0; r < 6; r++) {
-        for (let c = 0; c < 7; c++) {
-            const v = get(r, c);
-            if (!v) continue;
-            for (const [dr, dc] of dirs) {
-                let ok = true;
-                for (let k = 1; k < 4; k++) if (get(r + dr * k, c + dc * k) !== v) { ok = false; break; }
-                if (ok) return v === 'red' ? ids[0] : ids[1];
-            }
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) {
+        const v = get(r, c);
+        if (!v) continue;
+        for (const [dr, dc] of dirs) {
+            let ok = true;
+            for (let k = 1; k < 4; k++) if (get(r + dr * k, c + dc * k) !== v) { ok = false; break; }
+            if (ok) return v === 'red' ? ids[0] : ids[1];
         }
     }
     return b.every(x => x) ? 'draw' : null;
 }
 
-// ================== Guess Number ==================
+// Guess Number
 function renderGuessNum(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
-    if (!room.state) {
-        roomRef.child('state').set({ secret: Math.floor(Math.random() * 100) + 1, guesses: {}, winner: null });
-        return;
-    }
+    if (!room.state) { roomRef.child('state').set({ secret: Math.floor(Math.random() * 100) + 1, guesses: {}, winner: null }); return; }
     const s = room.state;
     const winnerName = s.winner ? room.players[s.winner]?.name : null;
     setTurnIndicator(s.winner ? `🎉 فاز ${winnerName}!` : 'خمن رقم من 1 إلى 100', false);
@@ -273,18 +239,13 @@ function renderGuessNum(area, room, code, user) {
     if (inp) inp.onkeypress = e => { if (e.key === 'Enter') send(); };
 }
 
-// ================== Typing ==================
+// Typing
 const TYPING_SENTENCES = [
-    'اللغة العربية من أجمل لغات العالم',
-    'التكنولوجيا تغير حياتنا كل يوم',
-    'الأصدقاء الحقيقيون كنز لا يفنى',
-    'العلم نور والجهل ظلام',
-    'الصبر مفتاح الفرج',
-    'من جد وجد ومن زرع حصد',
-    'الوقت كالسيف إن لم تقطعه قطعك',
-    'القراءة غذاء العقل والروح',
-    'السعادة ليست في المال بل في القناعة',
-    'الأمل يبدأ عندما نقرر أن نحاول'
+    'اللغة العربية من أجمل لغات العالم', 'التكنولوجيا تغير حياتنا كل يوم',
+    'الأصدقاء الحقيقيون كنز لا يفنى', 'العلم نور والجهل ظلام',
+    'الصبر مفتاح الفرج', 'من جد وجد ومن زرع حصد',
+    'الوقت كالسيف إن لم تقطعه قطعك', 'القراءة غذاء العقل والروح',
+    'السعادة ليست في المال بل في القناعة', 'الأمل يبدأ عندما نقرر أن نحاول'
 ];
 function renderTyping(area, room, code, user) {
     const roomRef = db.ref('rooms/' + code);
@@ -315,9 +276,7 @@ function renderTyping(area, room, code, user) {
         if (v === s.sentence) {
             await roomRef.child('state/finished/' + user.uid).set(Date.now());
             await roomRef.child('state/winner').transaction(w => w === null ? user.uid : undefined);
-        } else {
-            toast('غير مطابق! حاول مرة أخرى', 'error');
-        }
+        } else toast('غير مطابق!', 'error');
     };
     const btn = document.getElementById('typeSend');
     if (btn) btn.onclick = send;
@@ -325,7 +284,7 @@ function renderTyping(area, room, code, user) {
     if (inp) inp.onkeypress = e => { if (e.key === 'Enter') send(); };
 }
 
-// ================== Helpers ==================
+// Helpers
 function setTurnIndicator(text, myTurn) {
     const el = document.getElementById('turnIndicator');
     if (!el) return;
@@ -338,16 +297,9 @@ function resultText(winner, user) {
 }
 function recordResult(myUid, winner, ids, room) {
     const loserUid = ids.find(id => id !== myUid);
-    if (winner === 'draw') {
-        User.addResult(myUid, 'draw');
-        if (loserUid) User.addResult(loserUid, 'draw');
-    } else if (winner === myUid) {
-        User.addResult(myUid, 'win');
-        if (loserUid) User.addResult(loserUid, 'loss');
-    } else {
-        User.addResult(myUid, 'loss');
-        if (loserUid) User.addResult(loserUid, 'win');
-    }
+    if (winner === 'draw') { User.addResult(myUid, 'draw'); if (loserUid) User.addResult(loserUid, 'draw'); }
+    else if (winner === myUid) { User.addResult(myUid, 'win'); if (loserUid) User.addResult(loserUid, 'loss'); }
+    else { User.addResult(myUid, 'loss'); if (loserUid) User.addResult(loserUid, 'win'); }
     Missions.trackProgress(myUid, 'gamesPlayed', 1);
     Missions.trackProgress(myUid, 'game_' + room.gameType, 1);
     if (winner === myUid) Missions.trackProgress(myUid, 'wins', 1);

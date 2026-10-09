@@ -1,0 +1,12 @@
+{
+    "name": "GameVerse - ألعاب أونلاين",
+    "short_name": "GameVerse",
+    "description": "العب مع أصدقائك أونلاين - 9 ألعاب جماعية",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#f7f7f8",
+    "theme_color": "#18181b",
+    "lang": "ar",
+    "dir": "rtl"
+}

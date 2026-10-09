@@ -14,10 +14,16 @@
         <div style="font-weight:900;">الإعدادات</div>
         <div class="coin-badge"><span id="coinIcon"></span><span id="coinDisplay">0</span></div>
     </div>
-
     <div class="container">
         <div class="card">
-            <h2>معلومات الحساب</h2>
+            <div style="text-align:center; margin-bottom:20px;">
+                <div class="avatar-big" id="avatarPreview"></div>
+                <p style="color:var(--text-dim); font-size:13px; margin-top:8px;">اختر شكلك</p>
+            </div>
+            <h2>الشكل</h2>
+            <div class="avatar-picker" id="avatarPicker"></div>
+
+            <h2 style="margin-top:24px;">معلومات الحساب</h2>
             <div class="settings-item">
                 <div class="settings-label">
                     <span id="iconUser"></span>
@@ -38,15 +44,24 @@
                 </div>
             </div>
 
+            <h2 style="margin-top:24px;">اللغة</h2>
+            <div class="settings-item">
+                <div class="settings-label">
+                    <span id="iconGlobe"></span>
+                    <div>
+                        <div class="settings-title">اللغة</div>
+                        <div class="settings-value" id="currentLang">العربية</div>
+                    </div>
+                </div>
+                <select id="langSelect" style="width:auto; margin:0; padding:6px 10px; border-radius:8px;">
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+
             <h2 style="margin-top:24px;">الحساب</h2>
-            <button class="btn btn-outline" id="logoutBtn">
-                <span id="iconLogout"></span>
-                تسجيل خروج
-            </button>
-            <button class="btn btn-danger" id="deleteAccountBtn" style="margin-top:8px;">
-                <span id="iconTrash"></span>
-                حذف الحساب
-            </button>
+            <button class="btn btn-outline" id="logoutBtn"><span id="iconLogout"></span> تسجيل خروج</button>
+            <button class="btn btn-danger" id="deleteAccountBtn" style="margin-top:8px;"><span id="iconTrash"></span> حذف الحساب</button>
 
             <div style="text-align:center; margin-top:30px; color:var(--text-dim); font-size:12px;">
                 <div style="font-weight:700; color:var(--text);">GameVerse v2.0</div>
@@ -58,6 +73,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="icons.js"></script>
+    <script src="i18n.js"></script>
+    <script src="music.js"></script>
     <script src="app.js"></script>
     <script>
         document.getElementById('coinIcon').innerHTML = ICONS.coin;
@@ -65,32 +83,63 @@
         document.getElementById('iconMail').innerHTML = ICONS.mail;
         document.getElementById('iconLogout').innerHTML = ICONS.logout;
         document.getElementById('iconTrash').innerHTML = ICONS.trash;
+        document.getElementById('iconGlobe').innerHTML = ICONS.globe;
+
+        let currentAvatar = 'mars';
 
         requireAuth(async (user, profile) => {
             document.getElementById('userName').textContent = profile.name;
             document.getElementById('userEmail').textContent = profile.email || (profile.isGuest ? 'حساب زائر' : '—');
             updateCoinDisplay(profile.coins);
+            currentAvatar = profile.avatar || 'mars';
+            renderAvatarPicker();
+            updateAvatarPreview();
+
             db.ref('users/' + user.uid).on('value', s => {
                 const p = s.val();
                 if (p) {
                     document.getElementById('userName').textContent = p.name;
                     updateCoinDisplay(p.coins);
+                    if (p.avatar && p.avatar !== currentAvatar) {
+                        currentAvatar = p.avatar;
+                        renderAvatarPicker();
+                        updateAvatarPreview();
+                    }
                 }
             });
         });
+
+        function renderAvatarPicker() {
+            const picker = document.getElementById('avatarPicker');
+            picker.innerHTML = '';
+            AVATARS.forEach(a => {
+                const el = document.createElement('button');
+                el.className = 'avatar-option' + (a.id === currentAvatar ? ' active' : '');
+                el.innerHTML = a.svg;
+                el.title = a.name;
+                el.onclick = async () => {
+                    currentAvatar = a.id;
+                    await User.update(window.__user.uid, { avatar: a.id });
+                    renderAvatarPicker();
+                    updateAvatarPreview();
+                    toast('تم تحديث الشكل ✅', 'success');
+                };
+                picker.appendChild(el);
+            });
+        }
+        function updateAvatarPreview() {
+            document.getElementById('avatarPreview').innerHTML = getAvatarSVG(currentAvatar);
+        }
 
         document.getElementById('editNameBtn').onclick = async () => {
             const current = document.getElementById('userName').textContent;
             const newName = prompt('الاسم الجديد:', current);
             if (!newName || !newName.trim()) return;
             await User.update(window.__user.uid, { name: newName.trim() });
-            toast('تم تحديث الاسم', 'success');
+            toast('تم تحديث الاسم ✅', 'success');
         };
         document.getElementById('logoutBtn').onclick = async () => {
-            if (confirm('تأكيد الخروج؟')) {
-                await Auth.logout();
-                location.href = 'index.html';
-            }
+            if (confirm('تأكيد الخروج؟')) { await Auth.logout(); location.href = 'index.html'; }
         };
         document.getElementById('deleteAccountBtn').onclick = async () => {
             if (!confirm('سيتم حذف كل بياناتك!')) return;
@@ -100,9 +149,13 @@
                 await window.__user.delete();
                 toast('تم حذف الحساب', 'success');
                 setTimeout(() => location.href = 'index.html', 1000);
-            } catch (e) {
-                toast('يجب إعادة تسجيل الدخول أولاً', 'error');
-            }
+            } catch (e) { toast('يجب إعادة تسجيل الدخول أولاً', 'error'); }
+        };
+        const langSelect = document.getElementById('langSelect');
+        langSelect.value = I18n.current;
+        langSelect.onchange = () => {
+            I18n.set(langSelect.value);
+            document.getElementById('currentLang').textContent = langSelect.value === 'ar' ? 'العربية' : 'English';
         };
     </script>
 </body>
